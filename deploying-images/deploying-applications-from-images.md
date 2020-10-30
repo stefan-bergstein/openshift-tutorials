@@ -127,8 +127,8 @@ At the bottom of this page you will see that the checkbox for creating a route t
 When you are ready, at the bottom of the page click on _Create_. This will return you to the _Topology_ view, but this time you will see a representation of the deployment, rather than the options for deploying an application.
 
 
+<img src="images/image6.png" width="300"/>
 
-![alt_text](images/image6.png "image_tooltip")
 
 
 You may see the color of the ring in the visualization change from white, to light blue and then blue. This represents the phases of deployment as the container for the application starts up.
@@ -139,13 +139,15 @@ You may see the color of the ring in the visualization change from white, to lig
 To drill down and get further details on the deployment, click in the middle of the ring. This will result in a panel sliding out from the right hand side providing access to both an _Overview_:
 
 
-![alt_text](images/image4.png "image_tooltip")
+<img src="images/image4.png" width="600"/>
 
 
 and details on _Resources_ related to the deployment.
 
 
-![alt_text](images/image1.png "image_tooltip")
+
+
+<img src="images/image1.png" width="600"/>
 
 
 From the _Overview_ for the deployment, you can adjust the number of replicas, or pods, by clicking on the up and down arrows to the right of the ring.
@@ -155,9 +157,7 @@ The public URL for accessing the application can be found under _Resources_.
 If you dismiss the panel, you can also access the application via its public URL, by clicking on the URL shortcut icon on the visualization of the deployment.
 
 
-
-![alt_text](images/image2.png "image_tooltip")
-
+<img src="images/image2.png" width="300"/>
 
 
 # Topic 4 - Deleting the Application 
