@@ -4,10 +4,9 @@
 Explore how to deploy and monitor ML models on OpenShift using Seldon Core, Prometheus and Grafana. 
 
 ### Topics
-
-* Install Seldon Core, Prometheus and Grafana
-* Deploy ML models, scrape and graph operational metrics
-* Scrape and graph custom metrics
+* [Install Seldon Core, Prometheus and Grafana](#install-seldon-core-prometheus-and-grafana)
+* [Deploy ML models, scrape and graph operational metrics](#deploy-ml-models-scrape-and-graph-operational-metrics)
+* [Scrape and graph custom metrics](#scrape-and-graph-custom-metrics)
 
 
 # Install Seldon Core, Prometheus and Grafana
