@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    seldon-app: seldon-model-example
+  name: seldon-model-example
+spec:
+  endpoints:
+  - interval: 30s
+    path: /prometheus
+    port: http
+  selector:
+    matchLabels:
+      seldon-app: seldon-model-example

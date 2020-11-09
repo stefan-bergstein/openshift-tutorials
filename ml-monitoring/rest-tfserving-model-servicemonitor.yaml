@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    seldon-app: rest-tfserving-model
+  name: rest-tfserving-model
+spec:
+  endpoints:
+  - interval: 30s
+    path: /prometheus
+    port: http
+  selector:
+    matchLabels:
+      seldon-app: rest-tfserving-model
