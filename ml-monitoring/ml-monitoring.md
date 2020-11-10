@@ -1,4 +1,4 @@
-# Machine Learning Model Monitoring
+# Machine Learning Model Monitoring 
 
 ### Goal
 Explore how to deploy and monitor ML models on OpenShift using Seldon Core, Prometheus and Grafana. 
@@ -7,6 +7,9 @@ Explore how to deploy and monitor ML models on OpenShift using Seldon Core, Prom
 * [Install Seldon Core, Prometheus and Grafana](#install-seldon-core-prometheus-and-grafana)
 * [Deploy ML models, scrape and graph operational metrics](#deploy-ml-models-scrape-and-graph-operational-metrics)
 * [Scrape and graph custom metrics](#scrape-and-graph-custom-metrics)
+
+### Approach
+This repo contains various manifests for configuring Seldon Core, Prometheus and Grafana, which we will use to deplopy the showcase.  The machine learning models used here are example for working with metrics. 
 
 
 # Install Seldon Core, Prometheus and Grafana
