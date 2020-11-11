@@ -7,6 +7,8 @@ Explore how to deploy and monitor ML models on OpenShift using Seldon Core, Prom
 * [Install Seldon Core, Prometheus and Grafana](#install-seldon-core-prometheus-and-grafana)
 * [Deploy ML models, scrape and graph operational metrics](#deploy-ml-models-scrape-and-graph-operational-metrics)
 * [Scrape and graph custom metrics](#scrape-and-graph-custom-metrics)
+* [Use the OpenShift 'internal' Prometheus](#use-the-openshift-internal-prometheus)
+* [Troubleshooting](#troubleshooting)
 
 ### Approach
 This repo contains various manifests for configuring Seldon Core, Prometheus and Grafana, which we will use to deplopy the showcase.  The machine learning models used here are example for working with metrics. 
@@ -85,7 +87,7 @@ This this section we will use examples from SeldonIO to deploy ML models, scrape
 
 Ensure you are in the right namespace:
 ```
-oc new-project ml-mon
+oc project ml-mon
 ```
 
 ## Deploy the Seldon Core Grafana Dashboard
@@ -334,9 +336,147 @@ do
 done
 ```
 
-The Custom Metrics dashboard willhopefully show the data:
+The Custom Metrics dashboard will hopefully show the data:
 
 ![Custom Dashboard](images/custom-dashboard-data.png)
+
+
+# Use the OpenShift 'internal' Prometheus
+In OpenShift Container Platform 4.5, you can enable monitoring for user-defined projects in addition to the default platform monitoring. You can monitor your own projects in OpenShift Container Platform without the need for an additional monitoring solution. Using this new feature centralizes monitoring for core platform components and user-defined projects.
+
+This sections assumes that you have not deployed you own Prometheus Operator. 
+
+## Enabling monitoring for user-defined projects
+Follow the steps in [Enabling monitoring for user-defined projects](https://docs.openshift.com/container-platform/4.6/monitoring/enabling-monitoring-for-user-defined-projects.html#enabling-monitoring-for-user-defined-projects_enabling-monitoring-for-user-defined-projects)
+
+The OpenShift Prometheus can now scape metics for you workload including Seldon Core and Seldon custom metric.
+
+## Deploy models and service monitors
+
+Now you can deploy a model and just the service monitor. Let's do this step-by-step for a model using standard and a model with custom metrics:
+
+Ensure you are in the right namespace:
+```
+oc new-project ml-mon
+```
+
+### Deploy a model and view operational metric
+
+#### Deploy the model
+```
+oc apply -f https://raw.githubusercontent.com/SeldonIO/seldon-core/release-1.2.2/notebooks/resources/model_seldon_rest.yaml
+```
+
+Wait until pods are running and the service is created. 
+Next expose the service:
+
+```
+oc expose service rest-seldon-model
+
+```
+Test the prediction service:
+
+```
+curl  -H "Content-Type: application/json" -d '{"data": {"ndarray":[[1.0, 2.0, 5.0]]}}' -X POST http://$(oc get route rest-seldon-model  -o jsonpath='{.spec.host}')/api/v1.0/predictions 
+```
+Sample output:
+``` 
+{"data":{"names":["proba"],"ndarray":[[0.43782349911420193]]},"meta":{}}
+```
+The prediction works and the result is 0.437.
+
+
+### Deploy a Prometheus Service Monitor
+Now we will instruct Prometheus to gather Seldon-core metrics for the model. This is done with a Prometheus Service Monitor:
+
+```
+oc apply -f rest-seldon-model-servicemonitor.yaml
+```
+
+#### Generate load 
+
+Next, generate some load to have metric data on the dashboard:
+```
+while true
+do
+  curl  -H "Content-Type: application/json" -d '{"data": {"ndarray":[[1.0, 2.0, 5.0]]}}' -X POST http://$(oc get route rest-seldon-model  -o jsonpath='{.spec.host}')/api/v1.0/predictions 
+  sleep 2
+done
+
+```
+
+#### View operational metrics in the OpenShift Developer Console
+
+Now you can open the OpenShift Developer Console and navigate to Monitoring -> Metrics.
+Enter a custom query: 
+```
+round(sum(rate(seldon_api_executor_server_requests_seconds_count{code="200"}[1m]))by (project_name, deployment_name, deployment_version, exported_service, code),0.0001)
+``` 
+Sample view:
+![dev-monitoring-dashboard](images/dev-monitoring-dashboard.png)
+
+
+### Deploy a model and view custom metric
+
+#### Deploy the model
+
+```
+oc apply -f https://raw.githubusercontent.com/SeldonIO/seldon-core/v1.2.2/examples/models/custom_metrics/model_rest.yaml
+```
+
+#### Expose the service
+```
+oc expose service seldon-model-example
+```
+Test the prediction service:
+
+```
+curl -s -d '{"data": {"ndarray":[[1.0, 2.0, 5.0]]}}'    -X POST http://$(oc get route seldon-model-example -o jsonpath='{.spec.host}')/api/v1.0/predictions    -H "Content-Type: application/json"
+
+```
+
+Sample output with custom metrics in "meta":
+``` 
+{"data":{"names":["t:0","t:1","t:2"],"ndarray":[[1.0,2.0,5.0]]},"meta":{"metrics":[{"key":"mycounter","type":"COUNTER","value":1},{"key":"mygauge","type":"GAUGE","value":100},{"key":"mytimer","type":"TIMER","value":20.2}]}}
+```
+
+#### Scrape custom metrics
+
+**Note,** custom metrics are expose by the predictor (not the engine) at port 6000.
+
+Therefore, add a service for port 6000:
+
+```
+oc apply -f seldon-model-example-classifier-metrics-service.yaml 
+```
+
+And add a service monitor for the custom metrics:
+
+```
+oc apply -f seldon-model-example-classifier-servicemonitor.yaml
+```
+
+Create a bit of load:
+```
+for i in 1 2 3 4 5
+do
+
+  curl -s -d '{"data": {"ndarray":[[1.0, 2.0, 5.0]]}}'    -X POST http://$(oc get route seldon-model-example -o jsonpath='{.spec.host}')/api/v1.0/predictions    -H "Content-Type: application/json"
+  sleep 1
+done
+```
+
+
+#### Custom metrics in the OpenShift Developer Console
+
+Now you can open the OpenShift Developer Console and navigate to Monitoring -> Metrics.
+Enter a custom query: 
+```
+mygauge
+``` 
+Sample view:
+![dev-monitoring-dashboard](images/dev-monitoring-dashboard.png)
+
 
 # Troubleshooting
 
