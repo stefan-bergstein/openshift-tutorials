@@ -340,5 +340,42 @@ The Custom Metrics dashboard willhopefully show the data:
 
 # Troubleshooting
 
+## Missing data?
 In case your data is not showing up in Grafana, please check first in Prometheus if the metrics and data exist.
 ![prometheus](images/prometheus.png)
+
+
+## Internal error occurred: failed calling webhook "v1.mseldondeployment.kb.io":
+
+Deinstalling the Seldon Operator leaves webhookconfiguration behind, which cause trouble when you deploy a seldon deployment for a newly deployed operator,
+
+For example:
+
+```
+oc apply -f https://raw.githubusercontent.com/SeldonIO/seldon-core/release-1.2.2/notebooks/resources/model_seldon_rest.yaml
+```
+
+Sample output:
+```
+Error from server (InternalError): error when creating "https://raw.githubusercontent.com/SeldonIO/seldon-core/release-1.2.2/notebooks/resources/model_seldon_rest.yaml": Internal error occurred: failed calling webhook "v1.mseldondeployment.kb.io": Post https://seldon-webhook-service.manuela-ml-workspace.svc:443/mutate-machinelearning-seldon-io-v1-seldondeployment?timeout=30s: service "seldon-webhook-service" not found
+```
+
+A previous deployment of the Seldon Operator in ```manuela-ml-workspace``` causes the trouble.
+
+Let's find and delete the WebhookConfiguration. E.g.,
+```
+oc get MutatingWebhookConfiguration,ValidatingWebhookConfiguration -A | grep manuela
+```
+
+Sample output:
+```
+mutatingwebhookconfiguration.admissionregistration.k8s.io/seldon-mutating-webhook-configuration-manuela-ml-workspace   3          84d
+validatingwebhookconfiguration.admissionregistration.k8s.io/seldon-validating-webhook-configuration-manuela-ml-workspace   3          84d
+```
+Now delete ...
+```
+oc delete mutatingwebhookconfiguration.admissionregistration.k8s.io/seldon-mutating-webhook-configuration-manuela-ml-workspace
+oc delete validatingwebhookconfiguration.admissionregistration.k8s.io/seldon-validating-webhook-configuration-manuela-ml-workspace
+```
+
+
