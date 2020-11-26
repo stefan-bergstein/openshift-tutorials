@@ -212,7 +212,7 @@ spec:
       labels:
         app: env-test
     spec:
-      containers:scrects
+      containers:
       - name: shell
         image: registry.access.redhat.com/ubi8/ubi
         command:
