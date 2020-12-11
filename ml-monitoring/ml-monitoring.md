@@ -1,7 +1,11 @@
 # Machine Learning Model Monitoring 
 
-### Goal
-Explore how to deploy and monitor ML models on OpenShift using Seldon Core, Prometheus and Grafana. 
+
+Machine Learning models are developed, trained and deployed within more and more intelligent applications. Most of the modern applications are developed as cloud-native applications and deployed on Kubernetes.  There are several ways to serve your ML model so that application components can call a prediction REST web service. Seldon Core is a framework that makes it easy to deploy ML models. The Seldon Core metric functionality is an important feature for operational model performance monitoring and can support you observing potential model drift.
+
+In this blog post we are going to explore how to deploy and monitor ML models on OpenShift Kubernetes using Seldon Core, Prometheus and Grafana. 
+
+ 
 
 ### Topics
 * [Install Seldon Core, Prometheus and Grafana](#install-seldon-core-prometheus-and-grafana)
@@ -11,14 +15,20 @@ Explore how to deploy and monitor ML models on OpenShift using Seldon Core, Prom
 * [Troubleshooting](#troubleshooting)
 
 ### Approach
-This repo contains various manifests for configuring Seldon Core, Prometheus and Grafana, which we will use to deplopy the showcase.  The machine learning models used here are example for working with metrics. 
+After installing Seldon Core, Prometheus and Grafana on your OpenShift Kubernetes cluster, we will walk through several basic examples. The machine learning models used here are very simple and just examples for working with metrics.
+
+A basic understanding of OpenShift Kubernetes, Operators, machine learning and git is most likely needed to follow along.
+ 
+Please clone the git repo [openshift-tutorials](https://github.com/stefan-bergstein/openshift-tutorials) on your computer and switch to the directory [ml-monitoring](https://github.com/stefan-bergstein/openshift-tutorials/tree/main/ml-monitoring). 
+
+Additionally, please ensure that you have privileges to deploy and configure operators on your OpenShift cluster. The examples should work fine on [Red Hat CodeReady Containers](https://code-ready.github.io/crc/) as well
 
 
 # Install Seldon Core, Prometheus and Grafana
 
-Below are step-by-step instruction for installing and configuring Seldon Core, Prometheus and Grafana. Alternatively, you can install these components with [Open Data Hub](http://opendatahub.io). 
+Below are step-by-step instructions for installing and configuring Seldon Core, Prometheus and Grafana. Alternatively, you can install these components with [Open Data Hub](http://opendatahub.io). 
 
-Create a new project:
+Login into OpenShift and create a new project:
 
 ```
 oc new-project ml-mon
@@ -26,19 +36,34 @@ oc new-project ml-mon
 
 ## Install the Operators
 
-Install the Operators for Seldon Core, Promentheus and Grafana via the OperatorBun in OpenShift Console or `oc` CLI. E.g.,
+Install the Operators for Seldon Core, Promentheus and Grafana via the OperatorHub in OpenShift Console or using `oc` CLI and the operator subscriptions in the `operator` directory. E.g.,
 
 ```
 oc apply -k operator/
 ```
+Sample output:
+```
+operatorgroup.operators.coreos.com/ml-mon created
+subscription.operators.coreos.com/grafana-operator created
+subscription.operators.coreos.com/prometheus created
+subscription.operators.coreos.com/seldon-operator created
+
+```
+
+In OpenShift Console under `Installed Operators` you should see the following:
+![Installed Operators](images/operators.png)
 
 
 ## Create a Prometheus instance and route
+
+Now, create a Prometheus instance and route with by applying the following manifests:
 
 ```
 oc apply -f prometheus-instance.yaml
 oc apply -f prometheus-route.yaml
 ```
+
+Check if your Prometheus instance is running by navigating in the OpenShift Console to `Networking` -> `Routes`  and clicking on the Prometheus URL. 
 
 ## Configure Grafana
 
@@ -48,8 +73,9 @@ Create a Grafana instance:
 oc apply -f grafana-instance.yaml
 ```
 
+Your Grafana instance should be connected to you Prometheus instance as datascourde
 
-Create a datasource for Prometheus:
+Therfore, create a Grafana datasource for Prometheus:
 
 ```
 oc apply -f grafana-prometheus-datasource.yaml
@@ -66,19 +92,20 @@ Sample output:
 ```Generate load and view the dashboard
 NAME              HOST/PORT                                 PATH   SERVICES              PORT      TERMINATION   WILDCARD
 grafana-route     grafana-route-ml-mon.apps-crc.testing            grafana-service       3000      edge          None
-grafana-service   grafana-service-ml-mon.apps-crc.testing          grafana-service       grafana                 None
 prometheus        prometheus-ml-mon.apps-crc.testing               prometheus-operated   web                     None
 ```
 
 ```
-echo  http://$(oc get route grafana-service -n ml-mon -o jsonpath='{.spec.host}')
+echo  http://$(oc get route grafana-route -n ml-mon -o jsonpath='{.spec.host}')
 ```
 
 Sample output:
 
 ```
-http://grafana-service-ml-mon.apps-crc.testing
+http://grafana-route-ml-mon.apps-crc.testing
 ```
+
+In case everything went fine, you should see the **"Welcome to Grafana"** page. 
 
 
 # Deploy ML models, scrape and graph operational metrics
@@ -92,6 +119,8 @@ oc project ml-mon
 
 ## Deploy the Seldon Core Grafana Dashboard
 
+The Grafana Operator exposes an API for Dashboards. Let's apply the Prediction Analytics dashboard:
+
 ```
 oc apply -f prediction-analytics-seldon-core-1.2.2.yaml
 ```
@@ -100,23 +129,23 @@ Open Grafana and have a look the Prediction Analytics dashboard. No data is avai
 
 ![Empty Prediction Dashboard](images/seldon-dashboard-empty.png)
 
-## Seldon Protocol REST Model
+## Explore Seldon operational metrics
 
-Next we will do a couple of steps:
+Few steps are needed to see operational metrics:
 * Deploy a ML model using Seldon
 * Expose the prediction service
 * Deploy a Prometheus Service Monitor
-* Generate load and view the dashboard
+* Generate load for the prediction service and view the dashboard
 
 ### Deploy a ML model using Seldon
 
-Let us use an example from [Seldon Core](https://docs.seldon.io/projects/seldon-core/en/v1.2.2_a/examples/metrics.html#Seldon-Protocol-REST-Model):
+We will use an example from [Seldon Core](https://docs.seldon.io/projects/seldon-core/en/v1.2.2_a/examples/metrics.html#Seldon-Protocol-REST-Model):
 
 ```
 oc apply -f https://raw.githubusercontent.com/SeldonIO/seldon-core/release-1.2.2/notebooks/resources/model_seldon_rest.yaml
 ```
 
-Wait until the pods is deployed:
+Wait until the pod is deployed:
 ```
 oc get pods
 ```
@@ -130,13 +159,15 @@ rest-seldon-model-0-classifier-5594bd9d49-pld7s   2/2     Running   0          9
 
 ### Expose and test the prediction service
 
+The deployment of the model created a service too.
+
 Expose the created service so that we can test the prediction.
 ```
-oc expose service rest-seldon-model
+oc expose service rest-seldon-model
 ```
 
 Note, Seldon created two services: ```rest-seldon-model``` and ```rest-seldon-model-classifier```
-We will use here the service ```rest-seldon-model```, because it point to the seldon engine.
+We will use here the service ```rest-seldon-model```, because it points to the seldon engine and we have to use the seldon engine to make metrics available for Prometheus. 
 
 
 Test the prediction service:
@@ -152,15 +183,16 @@ The prediction works and the result is 0.437.
 
 
 ### Deploy a Prometheus Service Monitor
-Now we will instruct Prometheus to gather Seldon-core metrics for the model. This is done with a Prometheus Service Monitor:
+Next we will instruct Prometheus to gather Seldon-core metrics for the model. This is done with a Prometheus Service Monitor:
 
 ```
 oc apply -f rest-seldon-model-servicemonitor.yaml
 ```
 
-The Service Monitor is going to find the service with the label ```seldon-app=rest-seldon-model``` and scrape metrics from ```/prometheus``` at port ```http```:
+The Service Monitor is going to find the service with the label ```seldon-app=rest-seldon-model``` and scrape metrics from ```/prometheus``` at port ```http```. Here a snippet of the servicemonitor:
 
 ```
+...
 spec:
   endpoints:
   - interval: 30s
@@ -171,9 +203,9 @@ spec:
       seldon-app: rest-seldon-model
 ```
 
-### Generate load and view the dashboard
+### Generate load for the prediction service and view the dashboard
 
-Next, generate some load to have metric data on the dashboard:
+Generate some load for the prediction service to have metric data on the dashboard:
 ```
 while true
 do
@@ -182,7 +214,7 @@ do
 done
 
 ```
-The Grafana  Prediction Analytics dashboard will start showing some data
+The Grafana  Prediction Analytics dashboard will start showing some data:
 
 ![Basic Prediction Dashboard](images/seldon-dashboard-basic.png)
 
@@ -197,7 +229,7 @@ Let us repeat the lab with a Tensorflow model from [Seldon Core](https://docs.se
 oc apply -f https://raw.githubusercontent.com/SeldonIO/seldon-core/release-1.2.2/notebooks/resources/model_tfserving_rest.yaml
 ```
 
-Wait until the pods is deployed:
+Wait until the pod is deployed:
 ```
 oc get pods
 ```
@@ -217,7 +249,7 @@ oc expose service rest-tfserving-model
 ```
 
 Note, Seldon created two services: ```rest-tfserving-model``` and ```rest-tfserving-model-halfplustwo ```
-We will use here the service ```rest-tfserving-model```, because it point to the seldon engine.
+We will use here the service ```rest-tfserving-model```, because it point to the seldon engine so that we see metrics.
 
 
 Test the prediction service:
@@ -242,9 +274,10 @@ Now we will instruct Prometheus to gather Seldon-core metrics for the model. Thi
 oc apply -f rest-tfserving-model-servicemonitor.yaml
 ```
 
-The Service Monitor is going to find the service with the label ```rest-tfserving-model``` and scrape metrics from ```/prometheus``` at port ```http```:
+The Service Monitor is going to find the service with the label ```rest-tfserving-model``` and scrape metrics from ```/prometheus``` at port ```http```. Here a snippet of the servicemonitor::
 
 ```
+...
 spec:
   endpoints:
   - interval: 30s
@@ -255,9 +288,9 @@ spec:
       seldon-app: rest-tfserving-model
 ```
 
-### Generate load and view the dashboard
+### Generate load on the service and view the dashboard
 
-Next, generate some load to have data on the dashboard:
+Next, generate some load to see data on the dashboard:
 ```
 while true
 do
@@ -271,7 +304,9 @@ The Grafana Prediction Analytics dashboard will start showing the Tensorflow dat
 
 # Scrape and graph custom metrics
 
-Again. let's repeat the lab with a model from [Seldon Core](https://github.com/SeldonIO/seldon-core/blob/v1.2.2/examples/models/custom_metrics/model_rest.yaml).
+With custom metrics you can expose any metrics from your model. For example you cloud expose features and predictions for model drift monitoring.
+
+Again, let's repeat the lab with a model from [Seldon Core](https://github.com/SeldonIO/seldon-core/blob/v1.2.2/examples/models/custom_metrics/model_rest.yaml).
 
 ### Deploy the model and dashboard
 
@@ -292,7 +327,7 @@ Open Grafana and have a look the Custom Metrics dashboard. No data is available 
 ![Empty Custom Dashboard](images/custom-dashboard-empty.png)
 
 
-### Expose service and test
+### Expose the service and test
 
 ```
 oc expose service seldon-model-example
@@ -309,6 +344,8 @@ Sample output with custom metrics in "meta":
 ``` 
 {"data":{"names":["t:0","t:1","t:2"],"ndarray":[[1.0,2.0,5.0]]},"meta":{"metrics":[{"key":"mycounter","type":"COUNTER","value":1},{"key":"mygauge","type":"GAUGE","value":100},{"key":"mytimer","type":"TIMER","value":20.2}]}}
 ```
+
+Have a look at the meta data above.
 
 ### Scrape custom metrics
 
