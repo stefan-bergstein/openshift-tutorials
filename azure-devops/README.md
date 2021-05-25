@@ -1,9 +1,16 @@
 # CI/CD with Azure DevOps and OpenShift
 
-In this tutorial we are going to setup a CI/CD pipeline in Azure DevOps. The pipeline builds a small .Net application and deploys it to OpenShift.
+In this tutorial we are going to set up a CI/CD pipeline in Azure DevOps. The pipeline builds a small .Net application and deploys it to OpenShift.
 
 The steps are based on the Microsoft learning path module
 [Automate multi-container Kubernetes deployments with Azure Pipelines](https://docs.microsoft.com/en-us/learn/modules/deploy-kubernetes/). But instead of deploying to AKS, the application will be deployed on OpenShift.
+Overview:
+- Set up a OpenShift Kubernetes cluster
+- Set up an Azure DevOps environment
+- Create an Azure Container Registry
+- Create Kubernetes connection
+- Update a few Kubernetes manifests and the pipeline
+- Build and deploy the application to OpenShift
 
 ## Setup your OpenShift Kubernetes cluster
 Azure DevOps requires network connectivity to your OpenShift Kubernetes cluster. [Microsoft Azure Red Hat OpenShift](https://www.openshift.com/products/azure-openshift) or a self-managed [OpenShift Cluster on Azure](https://docs.openshift.com/container-platform/4.7/installing/installing_azure/installing-azure-default.html) are great options. 
@@ -12,20 +19,19 @@ However, in this tutorial we are using the [Developer Sandbox for Red Hat OpenSh
 ### Get your Developer Sandbox
 
 Navigate to [Get started in the Sandbox](https://developers.redhat.com/developer-sandbox/get-started) and hit **Launch your Developer Sandbox for Red Hat OpenShift**. Log in to your Red Hat account. Don't have an account? Create one now. It is free too. 
-Login into you Red Hat OpenShift development cluster bu pressing **Start using your sandbox**.
+Login into your Red Hat OpenShift development cluster by selecting **Start using your sandbox**.
 
-The sandbox contains two projects/namespaces. `<redhat-account-name>-dev` and `<redhat-account-name>-stage`.
+The sandbox contains two projects/namespaces: `<redhat-account-name>-dev` and `<redhat-account-name>-stage`
 
 Download the oc OpenShift Command Line Interface (CLI) via  **(?)** select **Command line tools**.
 
 
-Login with thc oc CLI by, 
+Login with the oc CLI by, 
 - navigating to **\<redhat-account\>**,  select **Copy login command**, and  **Display token**,
 - and enter `oc login --token=sha256~xxxyyyzz --server=https://api.sandbox-xxxyyyzzz.openshiftapps.com:6443` in your local shell.
 
 
 ### Create a service account for Azure DevOps
-
 
 Switch to the stage project:
 ```
@@ -45,7 +51,7 @@ serviceaccount/azure-sa created
 
 ```
 
-Add `edit` role to the service account: 
+Add the `edit` role to the service account: 
 ```
 $ oc policy add-role-to-user edit system:serviceaccount:<redhat-account-name>:azure-sa
 
@@ -59,14 +65,14 @@ Follow the instructions in [Exercise - Set up your Azure DevOps environment](htt
 1. Don't deploy the Azure Kubernetes Service. 
 2. Skip the `az role assignment create` command to create a role assignment to authorize the AKS cluster to connect to the Azure Container Registry.
 3. Don't create the service connection to Azure Kubernetes Service.
-4. Don't create a environment for Azure Kubernetes Service, but an generic Kubernetes environment for OpenShift.
+4. Don't create an environment for Azure Kubernetes Service, but a generic Kubernetes environment for OpenShift.
 
 
 
 ### Create the environment generic Kubernetes environment for OpenShift
 
 
-1. In Azure DevOps, under **Pipelines**  , select **Environments**.
+1. In Azure DevOps, under **Pipelines**, select **Environments**.
 2. Select **Create environment**.
 3. Under **Name**, enter *openshift-sandbox*.
 4. Under **Resource**, select **Kubernetes**.
@@ -116,7 +122,7 @@ $ kubectl get secret azure-sa-token-dkhx8  -o json
 First we will update a few manifests so that the application runs well as non-root, because privileged containers are not allow by default on OpenShift:
   - Update the two Dockerfiles so that the application runs well as non-root.
   - Update the `containerPort` in the `deployment.yml` 
-  - Update the `service.yaml` with the correct ports and add a openshift route.
+  - Update the `service.yaml` with the correct ports and add an openshift route.
 
 **Update the two Dockerfiles so that the application runs well as non-root**
 Go to your GitHub repository and update:
@@ -132,12 +138,12 @@ EXPOSE 8080
 ```
 
 
-Next, edit the file `mslearn-tailspin-spacegame-web-kubernetes/manifests/deployment.yml` and change the `containerPort` to `8080`
-Double check that the image contains your ACR name.
+Next, edit the file `mslearn-tailspin-spacegame-web-kubernetes/manifests/deployment.yml` and change the `containerPort` to `8080`.
+Double-check that the image contains your ACR name.
 
 
 
-Update the `service.yaml` with the correct ports and add a openshift route:
+Update the `service.yaml` with the correct ports and add an openshift route:
 ```yaml
 apiVersion: v1
 kind: Service
@@ -195,7 +201,7 @@ In this part, you'll:
 1. Set the `environment` to `'openshift-sandbox.<redhat-account-name>-stage'` instead of  `'spike.default'`
 2. Set the `kubernetesServiceConnection` to service connection you copied above: **openshift-sandbox-\<redhat-account-name>-stage-######**. E.g, *openshift-sandbox-stefan-bergstein-stage-1621852211065* 
 3. Set the `namespace` to `'<redhat-account-name>-stage'` instead of  `'default'`
-4. In the section **Save the pipeline to trigger a build and release**, please use the OpenShift Console to get te URL of the deployed application.
+4. In the section **Save the pipeline to trigger a build and release**, please use the OpenShift Console to get the URL of the deployed application.
 
 
 You can follow the Pipeline run in Azure DevOps:
