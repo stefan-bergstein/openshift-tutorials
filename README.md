@@ -13,3 +13,5 @@
 [Machine Learning Model Monitoring](https://github.com/stefan-bergstein/openshift-tutorials/tree/main/ml-monitoring)
 
 [Configuring custom domains for applications - the operator-way!](https://github.com/stefan-bergstein/openshift-tutorials/tree/main/custom-domains-for-applications)
+
+... more to come

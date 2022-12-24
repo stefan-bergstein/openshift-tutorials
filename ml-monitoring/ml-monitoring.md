@@ -75,7 +75,7 @@ oc apply -f grafana-instance.yaml
 
 Your Grafana instance should be connected to you Prometheus instance as datascourde
 
-Therfore, create a Grafana datasource for Prometheus:
+Therefore, create a Grafana datasource for Prometheus:
 
 ```
 oc apply -f grafana-prometheus-datasource.yaml
@@ -89,11 +89,13 @@ oc get routes
 ```
 Sample output:
 
-```Generate load and view the dashboard
+```
 NAME              HOST/PORT                                 PATH   SERVICES              PORT      TERMINATION   WILDCARD
 grafana-route     grafana-route-ml-mon.apps-crc.testing            grafana-service       3000      edge          None
 prometheus        prometheus-ml-mon.apps-crc.testing               prometheus-operated   web                     None
 ```
+
+Get the URL:
 
 ```
 echo  http://$(oc get route grafana-route -n ml-mon -o jsonpath='{.spec.host}')
@@ -166,7 +168,7 @@ Expose the created service so that we can test the prediction.
 oc expose service rest-seldon-model
 ```
 
-Note, Seldon created two services: ```rest-seldon-model``` and ```rest-seldon-model-classifier```
+Note, Seldon created two services: ```rest-seldon-model``` and ```rest-seldon-model-classifier```.
 We will use here the service ```rest-seldon-model```, because it points to the seldon engine and we have to use the seldon engine to make metrics available for Prometheus. 
 
 
@@ -248,7 +250,7 @@ Expose the created service so that we can test the prediction.
 oc expose service rest-tfserving-model
 ```
 
-Note, Seldon created two services: ```rest-tfserving-model``` and ```rest-tfserving-model-halfplustwo ```
+Note, Seldon created two services: ```rest-tfserving-model``` and ```rest-tfserving-model-halfplustwo ```.
 We will use here the service ```rest-tfserving-model```, because it point to the seldon engine so that we see metrics.
 
 
@@ -373,9 +375,12 @@ do
 done
 ```
 
-The Custom Metrics dashboard will hopefully show the data:
+The Custom Metrics dashboard will (hopefully) show the data. If not, set the time range of the Grafana dashboard to `Last 15 minutes`.
 
 ![Custom Dashboard](images/custom-dashboard-data.png)
+
+
+So, we saw operational and custom metrics in the Grafana Dashboards. You can now apply these concepts to your ML model serving.
 
 
 # Use the OpenShift 'internal' Prometheus
