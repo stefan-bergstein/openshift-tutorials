@@ -24,9 +24,10 @@ The steps are based on the Microsoft learning path module [Automate multi-contai
 
 ### Get your Developer Sandbox
 
-Navigate to [Get started in the Sandbox](https://developers.redhat.com/developer-sandbox/get-started) and hit **Launch your Developer Sandbox for Red Hat OpenShift**. Log in to your Red Hat account (Don’t have an account? Simply create your free account [here](https://www.redhat.com/wapps/ugc/register.html)). Now login into your Red Hat OpenShift development cluster by selecting **Start using your sandbox**.
+Navigate to [Start exploring in the Developer Sandbox for free
+](https://developers.redhat.com/developer-sandbox) and hit **Start your sandbox for free**. Log in to your Red Hat account (Don’t have an account? Simply create your free account [here](https://www.redhat.com/wapps/ugc/register.html)). Now login into your Red Hat OpenShift Developer Sandbox by selecting **Lauch** on the Red Hat OpenShift tile.
 
-The sandbox contains two projects/namespaces: `<redhat-account-name>-dev` and `<redhat-account-name>-stage`.
+The sandbox contains a developer project/namespaces: `<redhat-account-name>-dev`
 
 Download the oc OpenShift Command Line Interface (CLI) via the questions mark ![](https://open011prod.wpengine.com/wp-content/uploads/2021/05/q-mark.png) and select **Command line tools**.
 
@@ -41,32 +42,52 @@ $ oc login --token=sha256~xxxyyyzz --server=https://api.sandbox-xxxyyyzzz.opensh
 
 ### Create a service account for Azure DevOps
 
-Switch to the stage project:
+Switch to the dev project:
 
 ```
-$ oc project <redhat-account-name>-stage 
+$ oc project <redhat-account-name>-dev 
 ```
 
 Create a service account for Azure DevOps:
 
 ```
-$ cat &lt;&lt; EOF | oc apply -f -
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: azure-sa
-EOF
 
-serviceaccount/azure-sa created
+$ oc create serviceaccount azure-sa
+
+```
+
+Create a service account token:
+```
+oc  apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azure-sa-secret
+  annotations:
+    kubernetes.io/service-account.name: azure-sa
+type: kubernetes.io/service-account-token
+EOF
 ```
 
 Add the edit role to the service account:
-
 ```
-$ oc policy add-role-to-user edit system:serviceaccount:<redhat-account-name>:azure-sa
-
-clusterrole.rbac.authorization.k8s.io/edit added
+oc  apply -f - <<EOF
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: azure-sa-edit
+  namespace: <redhat-account-name>-dev
+subjects:
+  - kind: ServiceAccount
+    name: azure-sa
+    namespace: <redhat-account-name>-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+EOF
 ```
+
 
 ## Set up your Azure DevOps environment
 
@@ -76,6 +97,11 @@ Follow the instructions in [Exercise – Set up your Azure DevOps environment](h
 2.  Skip the `az role assignment create` command to create a role assignment to authorise the AKS cluster to connect to the Azure Container Registry.
 3.  Don’t create the service connection to Azure Kubernetes Service.
 4.  Don’t create an environment for Azure Kubernetes Service, but a generic Kubernetes environment for OpenShift.
+5.  Don’t create a ARM service connection to authenticate with a AKS cluster
+6.  Skip update the Kubernetes deployment manifest
+
+
+
 
 
 *You might want to open this blog post and the Microsoft learning path module side by side to follow the tutorial without getting lost.*
@@ -93,31 +119,16 @@ Create a new environment in Azure DevOps
 
 5.  Select **Next**.
 6.  Under **Provider**, select **Generic provider (exiting service account)**.
-7.  Under **Cluster Name**, enter _sandbox_.
-8.  Under **Namespace**, enter _<redhat-account-name>-stage_.
+7.  Under **Cluster Name**, enter `openshift-sandbox`.
+8.  Under **Namespace**, enter `<redhat-account-name>-dev`.
 9.  Run `kubectl config view --minify -o jsonpath={.clusters[0].cluster.server}` and enter the URL under **Server URL**.
-10.  Switch to the stage project/namespace and get the service account secret.
+10. Get the service account secret in json format.
 
 ```
-$ oc project &lt;redhat-account-name&gt;-stage
-$ kubectl get serviceAccounts azure-sa  -o=jsonpath={.secrets[*].name}
-
-azure-sa-dockercfg-w8b9s azure-sa-token-dkhx8
-
-# Use the token from the output ^^^</span>
-
-$ kubectl get secret azure-sa-token-dkhx8  -o json
-
-{
-    "apiVersion": "v1",
-    "data": {
-...
-    },
-    "type"</span>: "kubernetes.io/service-account-token"</span>
-}
+$ oc get secret azure-sa-secret -o json -n <redhat-account-name>-dev
 ```
 
-11.  Under **Secret**, enter the json output from the last command.
+11.  Under **Secret**, copy and past the json output from the last command.
 12.  Select **Validate and create**
 
 ![New generic Kubernetes environment for OpenShift ](images/new-env-k8s.png)
@@ -125,7 +136,7 @@ $ kubectl get secret azure-sa-token-dkhx8  -o json
 Create a generic Kubernetes environment for OpenShift
 
 13.  Under **Project Settings**, select **Service Connection**.
-14.  Copy the name of the new Kubernetes service connection **openshift-sandbox-<redhat-account-name>-stage-######**. E.g, _openshift-sandbox-stefan-bergstein-stage-1621852211065_
+14.  Copy the name of the new Kubernetes service connection **openshift-sandbox-<redhat-account-name>-dev-######**. E.g, _openshift-sandbox-stefan-bergstein-dev-1621852211065_
 
 ### Update the Kubernetes deployment manifest in your GitHub source project
 
@@ -215,9 +226,9 @@ In this part, you’ll:
 
 Follow the instructions in [Exercise – Deploy a multi-container solution to Kubernetes](https://docs.microsoft.com/en-us/learn/modules/deploy-kubernetes/4-deploy-kubernetes) with a few exceptions:
 
-1.  Set the `environment` to `'openshift-sandbox.<redhat-account-name>-stage'` instead of `'spike.default'`
-2.  Set the `kubernetesServiceConnection` to service connection you copied above: **openshift-sandbox-<redhat-account-name>-stage-######**. E.g, _openshift-sandbox-stefan-bergstein-stage-1621852211065_
-3.  Set the `namespace` to `'<redhat-account-name>-stage'` instead of `'default'`
+1.  Set the `environment` to `'openshift-sandbox.<redhat-account-name>-dev'` instead of `'spike.default'`
+2.  Set the `kubernetesServiceConnection` to service connection you copied above: **openshift-sandbox-<redhat-account-name>-dev-######**. E.g, _openshift-sandbox-stefan-bergstein-dev-1621852211065_
+3.  Set the `namespace` to `'<redhat-account-name>-dev'` instead of `'default'`
 4.  In the section **Save the pipeline to trigger a build and release**, please use the OpenShift Console to get the URL of the deployed application.
 
 You can follow the Pipeline run in Azure DevOps:
@@ -232,7 +243,7 @@ Pipeline run logs
 
 ### Check the deployed application in OpenShift
 
-Open your OpenShift Developer Console of your Sandbox and navigate to the topology of your stage project. Two deployments are running:
+Open your OpenShift Developer Console of your Sandbox and navigate to the topology of your dev project. Two deployments are running:
 
 ![](images/ocp-topo.png)
 
